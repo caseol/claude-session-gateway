@@ -95,3 +95,38 @@ curl -s -XPOST 127.0.0.1:3470/send -H "$H" \
 # nv reads it:
 curl -s -XPOST 127.0.0.1:3470/inbox/<nv-sid>/read -H "$H"
 ```
+
+## Collaborative mode (agent→agent chaining)
+
+By default the broker delivers `ask_agent` in **`plan`** permission mode: the target
+answers with text but **cannot use tools**, so it can't itself call `ask_agent` to chain.
+Direct asks and async inbox work; chains don't.
+
+To let agents consult *each other* (A asks B, and B asks C to answer), set the delivery
+permission mode so the forked target may use tools:
+
+```
+# ~/.local/share/agent-broker/state/.env
+A2A_ASK_PERMISSION_MODE=bypassPermissions
+```
+and run the **Session Gateway** with `GW_ALLOW_DANGEROUS_MODES=1` (otherwise it 403s the
+elevated mode). Restart both. Default stays `plan` (safe).
+
+⚠️ Tradeoff: in this mode a forked target agent runs with tools enabled (Bash/edit/MCP),
+so an adversarial A2A message could trigger tool use. Enable only among trusted local agents.
+
+### Inbox + forks caveat
+`ask_agent` answers via a non-destructive **fork** of the target (a new session id), so a
+forked target's `check_inbox` reads the *fork's* inbox, not the live agent's. Async inbox
+messages are meant to be read by the **live** session (the agent polling in its terminal).
+
+## Persistent daemons (systemd --user)
+
+Example units in `deploy/systemd/` (gateway sets `GW_ALLOW_DANGEROUS_MODES=1`):
+
+```bash
+cp deploy/systemd/*.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now session-gateway agent-broker
+```
+Manage with `systemctl --user {status,restart,stop}`; don't use the nohup launchers' stop.

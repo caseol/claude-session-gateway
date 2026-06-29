@@ -303,7 +303,7 @@ async def ask(req: AskReq, authorization: str = Header(default=""),
                 f"{common.GW_URL}/v1/discovered/{tsid}/prompt",
                 headers={"Authorization": f"Bearer {gw_token}"},
                 json={"prompt": framed, "mode": "fork",
-                      "lane": tlane, "permission_mode": "plan"})
+                      "lane": tlane, "permission_mode": common.ASK_PERMISSION_MODE})
         if r.status_code != 200:
             return {"ok": False, "error": "gateway_error",
                     "status": r.status_code, "detail": r.text[:300]}

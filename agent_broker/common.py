@@ -30,6 +30,25 @@ GW_URL = os.environ.get("SESSION_GATEWAY_URL", "http://127.0.0.1:3471")
 GW_TOKEN_FILE = Path(os.path.expanduser("~/.config/session-gateway/token"))
 
 
+def _env_file_get(key: str, default: str) -> str:
+    try:
+        for line in ENV_FILE.read_text().splitlines():
+            if line.startswith(key + "="):
+                return line.split("=", 1)[1].strip()
+    except OSError:
+        pass
+    return default
+
+
+# Modo de permissão com que os asks são ENTREGUES ao agente alvo.
+# "plan" (default, seguro): o alvo só responde texto — não pode usar ferramentas,
+# então NÃO consegue encadear (chamar ask_agent de novo). Para habilitar agentes
+# consultando agentes (cadeia), use "bypassPermissions" (o alvo forkado pode usar
+# ferramentas). Lido de env ou de state/.env (A2A_ASK_PERMISSION_MODE).
+ASK_PERMISSION_MODE = (os.environ.get("A2A_ASK_PERMISSION_MODE")
+                       or _env_file_get("A2A_ASK_PERMISSION_MODE", "plan"))
+
+
 def ensure_dirs() -> None:
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -1,0 +1,15 @@
+[Unit]
+Description=claude-session-gateway — HTTP gateway for Claude Code sessions (port 3471)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Workspace/session-gateway
+Environment=PYTHONPATH=%h/Workspace/session-gateway
+Environment=GW_ALLOW_DANGEROUS_MODES=1
+ExecStart=/usr/bin/python3 -m session_gateway.main
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
