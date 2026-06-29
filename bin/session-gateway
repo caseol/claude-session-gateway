@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Launcher do Session Gateway (start/stop/status/logs). Usa o python do sistema
+# (com fastapi/uvicorn) por padrão para não quebrar dentro de venvs.
+set -e
+
+# Descobre a raiz do repo: se este script estiver em <repo>/bin, usa <repo>;
+# senão lê SESSION_GATEWAY_HOME de ~/.config/session-gateway/env.
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+DIR="$(dirname "$SELF")"
+if [ -d "$DIR/../session_gateway" ]; then
+  PROJ="$(cd "$DIR/.." && pwd)"
+elif [ -f "$HOME/.config/session-gateway/env" ]; then
+  # shellcheck source=/dev/null
+  . "$HOME/.config/session-gateway/env"
+  PROJ="${SESSION_GATEWAY_HOME:?defina SESSION_GATEWAY_HOME}"
+else
+  PROJ="$HOME/Workspace/session-gateway"
+fi
+
+PY="${SESSION_GATEWAY_PY:-/usr/bin/python3}"
+PORT="${SESSION_GATEWAY_PORT:-3471}"
+LOG="${SESSION_GATEWAY_LOG:-/tmp/session-gateway.log}"
+PIDFILE="$HOME/.config/session-gateway/gateway.pid"
+
+port_listening() { ss -tlnp "sport = :$PORT" 2>/dev/null | grep -q LISTEN; }
+
+case "${1:-start}" in
+  start)
+    if port_listening; then echo "já rodando na porta $PORT"; exit 0; fi
+    mkdir -p "$HOME/.config/session-gateway"
+    cd "$PROJ"
+    PYTHONPATH="$PROJ" nohup "$PY" -m session_gateway.main > "$LOG" 2>&1 &
+    echo $! > "$PIDFILE"
+    for _ in $(seq 1 15); do port_listening && break; sleep 1; done
+    if port_listening; then echo "Session Gateway pronto na porta $PORT"; else
+      echo "falhou; tail do log:"; tail -20 "$LOG"; exit 1; fi
+    ;;
+  stop)
+    pid=$(ss -tlnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1)
+    [ -n "$pid" ] && kill "$pid" 2>/dev/null && echo "parado (PID $pid)" || echo "não estava rodando"
+    ;;
+  status) port_listening && echo "rodando na porta $PORT" || echo "parado" ;;
+  logs) tail -f "$LOG" ;;
+  *) echo "uso: session-gateway {start|stop|status|logs}"; exit 1 ;;
+esac

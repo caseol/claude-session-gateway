@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Secrets & runtime state (never commit)
+**/token
+**/*.env
+.env
+state/
+*.log
+*.pid
+*.bak
+*.bak.*
+
+# Local config that may contain machine-specific paths
+config/lanes.json
+
+# OS
+.DS_Store

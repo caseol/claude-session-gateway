@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# claude-orig — Claude Code "original" (backend Anthropic real, sem overrides de
+# modelo/proxy), porém integrado ao A2A (lane "original").
+set -e
+
+PASSTHRU=("$@")
+AGENT_LANE=original
+source "$HOME/.local/bin/_a2a_common.sh"

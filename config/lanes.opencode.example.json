@@ -1,0 +1,6 @@
+{
+  "original": {"command": "claude"},
+  "go":  {"command": "claude-go",  "proxy_port": 3457},
+  "zen": {"command": "claude-zen", "proxy_port": 3459},
+  "nv":  {"command": "claude-nv",  "proxy_port": 3458}
+}

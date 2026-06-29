@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Launcher do Agent Broker (A2A). Usa /usr/bin/python3 do sistema.
+set -e
+
+BASE="$HOME/.local/share/agent-broker"
+PY=/usr/bin/python3
+PORT="${BROKER_PORT:-3470}"
+LOG="$BASE/state/broker.log"
+
+port_listening() { ss -tlnp "sport = :$PORT" 2>/dev/null | grep -q LISTEN; }
+
+case "${1:-start}" in
+  start)
+    if port_listening; then echo "broker já rodando na porta $PORT"; exit 0; fi
+    mkdir -p "$BASE/state/inbox"
+    nohup "$PY" "$BASE/broker.py" > "$LOG" 2>&1 &
+    for i in $(seq 1 12); do port_listening && break; sleep 1; done
+    if port_listening; then echo "Agent Broker pronto na porta $PORT"; else
+      echo "falhou; tail do log:"; tail -20 "$LOG"; exit 1; fi
+    ;;
+  stop)
+    pid=$(ss -tlnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1)
+    [ -n "$pid" ] && kill "$pid" 2>/dev/null && echo "broker parado (PID $pid)" || echo "não estava rodando"
+    ;;
+  status) port_listening && echo "rodando na porta $PORT" || echo "parado" ;;
+  token) grep BROKER_TOKEN "$BASE/state/.env" 2>/dev/null | cut -d= -f2 ;;
+  logs) tail -f "$LOG" ;;
+  *) echo "uso: agent-broker {start|stop|status|token|logs}"; exit 1 ;;
+esac
