@@ -81,31 +81,39 @@ async def one_shot(session_id: str, prompt: str, mode: str = "fork",
                    lane: str | None = None,
                    timeout_s: int | None = None) -> dict:
     """Roda `claude[-lane] -p --resume <sid> [--fork-session]` e devolve o JSON do result."""
-    disc = find(session_id)
-    if disc is None:
-        raise KeyError(f"sessão {session_id} não encontrada em ~/.claude/sessions")
-    if mode == "resume" and not disc.safe_to_drive:
-        raise RuntimeError(
-            f"sessão {session_id} não está segura para dirigir "
-            f"(status={disc.status}); use mode=fork")
-
     pm = permission_mode or config.DEFAULT_PERMISSION_MODE
     if pm not in config.VALID_PERMISSION_MODES:
         raise ValueError(f"permission_mode inválido: {pm}")
     if pm in config.DANGEROUS_MODES and not config.ALLOW_DANGEROUS_MODES:
         raise PermissionError(f"modo '{pm}' bloqueado")
 
-    cwd = disc.cwd or os.path.expanduser("~")
+    disc = find(session_id)
+    base_cwd = (disc.cwd if disc else None) or os.path.expanduser("~")
     base = [_resume_argv0(lane), "-p", "--output-format", "json", "--permission-mode", pm]
-    argv = base + ["--resume", session_id] + (["--fork-session"] if mode == "fork" else [])
 
-    rc, out, err = await _run(argv, cwd, prompt, timeout_s)
+    # Session not discoverable in ~/.claude/sessions (closed/stale registration).
+    # If we know the lane, answer with a fresh turn instead of failing (404).
+    if disc is None:
+        if not lane:
+            raise KeyError(f"sessão {session_id} não encontrada em ~/.claude/sessions")
+        rc, out, err = await _run(base, base_cwd, prompt, timeout_s)
+        if rc != 0:
+            raise RuntimeError(f"claude saiu com {rc}: "
+                               f"{(err or out).decode('utf-8', 'replace')[:500]}")
+        return _extract_json(out)
+
+    if mode == "resume" and not disc.safe_to_drive:
+        raise RuntimeError(
+            f"sessão {session_id} não está segura para dirigir "
+            f"(status={disc.status}); use mode=fork")
+
+    argv = base + ["--resume", session_id] + (["--fork-session"] if mode == "fork" else [])
+    rc, out, err = await _run(argv, base_cwd, prompt, timeout_s)
     if rc != 0:
         text = (out + err).decode("utf-8", "replace")
-        # Target session has no transcript yet (freshly opened, no turns) — answer
-        # with a fresh turn in the same lane (a fresh agent has no prior context anyway).
+        # Target has no transcript yet (freshly opened) — fall back to a fresh turn.
         if "No conversation found" in text:
-            rc, out, err = await _run(base, cwd, prompt, timeout_s)
+            rc, out, err = await _run(base, base_cwd, prompt, timeout_s)
         if rc != 0:
             raise RuntimeError(f"claude saiu com {rc}: "
                                f"{(err or out).decode('utf-8', 'replace')[:500]}")
