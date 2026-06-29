@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/claude-session-gateway"
+Homepage = "https://github.com/caseol/claude-session-gateway"
 
 [tool.setuptools]
 packages = ["session_gateway", "session_gateway.routes"]
