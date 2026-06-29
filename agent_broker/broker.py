@@ -180,6 +180,13 @@ class SessionReq(BaseModel):
     session_id: str
 
 
+class HeartbeatReq(BaseModel):
+    session_id: str
+    lane: Optional[str] = None
+    display_name: Optional[str] = None
+    pid: Optional[int] = 0
+
+
 class AskReq(BaseModel):
     target: str
     message: str
@@ -209,8 +216,15 @@ async def deregister(req: SessionReq):
 
 
 @app.post("/heartbeat")
-async def heartbeat(req: SessionReq):
-    return {"ok": REG.heartbeat(req.session_id)}
+async def heartbeat(req: HeartbeatReq):
+    # Keep-alive; if the agent isn't registered (e.g. the broker restarted), re-register
+    # it from the heartbeat payload so live agents reappear without restarting the session.
+    if REG.heartbeat(req.session_id):
+        return {"ok": True}
+    if req.lane:
+        REG.register(req.lane, req.session_id, req.display_name or req.lane, req.pid or 0)
+        return {"ok": True, "reregistered": True}
+    return {"ok": False}
 
 
 @app.get("/agents")

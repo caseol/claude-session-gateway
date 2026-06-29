@@ -186,9 +186,13 @@ def deregister() -> None:
 
 
 def _heartbeat_loop() -> None:
+    # Send full identity so the broker can re-register us if it restarted (upsert).
     while True:
         time.sleep(60)
-        _call_broker("POST", "/heartbeat", {"session_id": SESSION})
+        _call_broker("POST", "/heartbeat",
+                     {"session_id": SESSION, "lane": LANE,
+                      "display_name": os.environ.get("AGENT_DISPLAY_NAME", LANE),
+                      "pid": os.getppid()})
 
 
 # ---------- JSON-RPC ----------
