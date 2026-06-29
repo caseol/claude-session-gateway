@@ -27,24 +27,28 @@ if ! ss -tlnp "sport = :$_GW_PORT" 2>/dev/null | grep -q LISTEN; then
   fi
 fi
 
-# Se já há uma sessão específica nos args (--session-id/--resume; ex.: o gateway
-# lança a lane com --session-id), ADOTAMOS esse id como identidade A2A e não
-# forçamos outro --session-id.
+# Se já há uma flag de sessão nos args (--session-id/--resume/--continue), NÃO
+# forçamos outro --session-id — o claude rejeita --session-id junto de
+# --continue/--resume sem --fork-session. Para --session-id/--resume COM valor,
+# adotamos o id como identidade A2A.
 _a2a_existing=""
+_a2a_has_session_flag=0
 _a2a_prev=""
 for _a in "${PASSTHRU[@]}"; do
   case "$_a2a_prev" in
     --session-id|--resume|-r) _a2a_existing="$_a" ;;
   esac
   case "$_a" in
-    --session-id=*) _a2a_existing="${_a#--session-id=}" ;;
-    --resume=*)     _a2a_existing="${_a#--resume=}" ;;
+    --session-id=*) _a2a_existing="${_a#--session-id=}"; _a2a_has_session_flag=1 ;;
+    --resume=*)     _a2a_existing="${_a#--resume=}";     _a2a_has_session_flag=1 ;;
+    --session-id|--resume|-r|--continue|-c) _a2a_has_session_flag=1 ;;
   esac
   _a2a_prev="$_a"
 done
 
-if [ -n "$_a2a_existing" ]; then
-  export AGENT_SESSION_ID="$_a2a_existing"
+[ -n "$_a2a_existing" ] && export AGENT_SESSION_ID="$_a2a_existing"
+
+if [ "$_a2a_has_session_flag" = "1" ]; then
   exec claude "${PASSTHRU[@]}"
 else
   exec claude --session-id "$AGENT_SESSION_ID" "${PASSTHRU[@]}"
