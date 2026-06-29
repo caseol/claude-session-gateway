@@ -95,22 +95,31 @@ async def one_shot(session_id: str, prompt: str, mode: str = "fork",
     if pm in config.DANGEROUS_MODES and not config.ALLOW_DANGEROUS_MODES:
         raise PermissionError(f"modo '{pm}' bloqueado")
 
-    argv = [_resume_argv0(lane), "-p",
-            "--resume", session_id, "--output-format", "json",
-            "--permission-mode", pm]
-    if mode == "fork":
-        argv += ["--fork-session"]
+    cwd = disc.cwd or os.path.expanduser("~")
+    base = [_resume_argv0(lane), "-p", "--output-format", "json", "--permission-mode", pm]
+    argv = base + ["--resume", session_id] + (["--fork-session"] if mode == "fork" else [])
 
+    rc, out, err = await _run(argv, cwd, prompt, timeout_s)
+    if rc != 0:
+        text = (out + err).decode("utf-8", "replace")
+        # Target session has no transcript yet (freshly opened, no turns) — answer
+        # with a fresh turn in the same lane (a fresh agent has no prior context anyway).
+        if "No conversation found" in text:
+            rc, out, err = await _run(base, cwd, prompt, timeout_s)
+        if rc != 0:
+            raise RuntimeError(f"claude saiu com {rc}: "
+                               f"{(err or out).decode('utf-8', 'replace')[:500]}")
+    return _extract_json(out)
+
+
+async def _run(argv: list[str], cwd: str, prompt: str, timeout_s: int | None):
     env = dict(os.environ, A2A_NO_SHIM="1")  # turno transitório: sem shim/registro A2A
     proc = await asyncio.create_subprocess_exec(
-        *argv, cwd=disc.cwd or os.path.expanduser("~"), env=env,
+        *argv, cwd=cwd, env=env,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE)
     out, err = await asyncio.wait_for(
         proc.communicate(input=prompt.encode("utf-8")),
         timeout=timeout_s or config.TURN_TIMEOUT_SECONDS)
-    if proc.returncode != 0:
-        raise RuntimeError(f"claude saiu com {proc.returncode}: "
-                           f"{err.decode('utf-8','replace')[:500]}")
-    return _extract_json(out)
+    return proc.returncode, out, err

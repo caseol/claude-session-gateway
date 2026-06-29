@@ -115,6 +115,13 @@ elevated mode). Restart both. Default stays `plan` (safe).
 ⚠️ Tradeoff: in this mode a forked target agent runs with tools enabled (Bash/edit/MCP),
 so an adversarial A2A message could trigger tool use. Enable only among trusted local agents.
 
+
+### Target with no conversation yet
+If the target session was just opened and has **no transcript** (zero turns), the
+resume-fork has nothing to resume. The gateway then falls back to a **fresh turn** in
+the target's lane (a fresh agent has no prior context anyway), so `ask_agent` works
+even against freshly-opened agents.
+
 ### Inbox + forks caveat
 `ask_agent` answers via a non-destructive **fork** of the target (a new session id), so a
 forked target's `check_inbox` reads the *fork's* inbox, not the live agent's. Async inbox
