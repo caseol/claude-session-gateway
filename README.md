@@ -1,5 +1,9 @@
 # Claude Session Gateway
 
+[![tests](https://github.com/caseol/claude-session-gateway/actions/workflows/tests.yml/badge.svg)](https://github.com/caseol/claude-session-gateway/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![python: 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+
 **An HTTP gateway that lets any application drive a [Claude Code](https://claude.com/claude-code) session programmatically — preserving the session's context and memory — plus an optional agent-to-agent (A2A) layer so the agents inside different sessions can talk to each other.**
 
 You talk to Claude Code from your terminal. This gateway lets *your code* talk to it the same way: send a prompt, get the response, keep the full conversation context across turns — over a simple local HTTP API.
